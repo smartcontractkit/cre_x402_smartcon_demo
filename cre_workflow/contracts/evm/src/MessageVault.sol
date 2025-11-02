@@ -1,8 +1,9 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.27;
 
-import "./keystone/IReceiver.sol";
-import "@openzeppelin/contracts/access/Ownable.sol";
+import {IReceiver} from "./keystone/IReceiver.sol";
+import {IERC165} from "./keystone/IERC165.sol";
+import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 
 /// @title MessageVault - A contract for storing message hashes on-chain with workflow validation
 /// @notice This contract stores message hashes and emits full content in events
@@ -13,7 +14,7 @@ contract MessageVault is IReceiver, Ownable {
     bytes10 public expectedWorkflowName;
 
     // Trusted Chainlink KeystoneForwarder address (immutable)
-    address public immutable forwarder;
+    address public immutable FORWARDER_ADDRESS;
 
     // Custom errors
     error InvalidSender(address sender, address expected);
@@ -40,12 +41,11 @@ contract MessageVault is IReceiver, Ownable {
     /// @notice Constructor to set initial expected workflow values and forwarder
     /// @param _forwarderAddress Address of the Chainlink KeystoneForwarder
     /// @param _expectedWorkflowOwner Expected workflow owner address
-    /// @param _expectedWorkflowName Expected workflow name (10 bytes)
-    /// @dev Sepolia Forwarder: 0x15fC6ae953E024d975e77382eEeC56A9101f9F88
+    /// @param _expectedWorkflowName Expected workflow name
     constructor(address _forwarderAddress, address _expectedWorkflowOwner, bytes10 _expectedWorkflowName)
         Ownable(msg.sender)
     {
-        forwarder = _forwarderAddress;
+        FORWARDER_ADDRESS = _forwarderAddress;
         expectedWorkflowOwner = _expectedWorkflowOwner;
         expectedWorkflowName = _expectedWorkflowName;
     }
@@ -72,8 +72,8 @@ contract MessageVault is IReceiver, Ownable {
     /// @dev Multi-layered security: forwarder check + workflow validation
     function onReport(bytes calldata metadata, bytes calldata rawReport) external override {
         // Layer 1: Verify caller is the trusted forwarder
-        if (msg.sender != forwarder) {
-            revert InvalidSender(msg.sender, forwarder);
+        if (msg.sender != FORWARDER_ADDRESS) {
+            revert InvalidSender(msg.sender, FORWARDER_ADDRESS);
         }
 
         // Layer 2: Decode and validate workflow metadata

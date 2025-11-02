@@ -25,32 +25,38 @@ logger = logging.getLogger(__name__)
 
 app = FastAPI(title="X402 CRE Gateway")
 
+# Load CDP API credentials
+CDP_API_KEY_ID = os.getenv("CDP_API_KEY_ID")
+CDP_API_KEY_SECRET = os.getenv("CDP_API_KEY_SECRET")
 
 facilitator_config = create_facilitator_config(
     api_key_id=CDP_API_KEY_ID,
     api_key_secret=CDP_API_KEY_SECRET,
 )
 
-# Apply x402 payment middleware to specific routes
-app.middleware("http")(
-    require_payment(
-        path="/trigger_workflow_x402",
-        price=os.getenv("X402_PRICE"),
-        pay_to_address=os.getenv("X402_PAY_TO_ADDRESS"),
-        network=os.getenv("X402_NETWORK"),
-        facilitator_config=facilitator_config,
-    )
-)
+# Define paths that require x402 payment
+X402_PROTECTED_PATHS = [
+    "/trigger_workflow_x402",
+    "/hello_x402",
+]
 
-app.middleware("http")(
-    require_payment(
-        path="/hello_x402",
-        price=os.getenv("X402_PRICE"),
-        pay_to_address=os.getenv("X402_PAY_TO_ADDRESS"),
-        network=os.getenv("X402_NETWORK"),
-        facilitator_config=facilitator_config,
-    )
-)
+# Apply x402 payment middleware to protected routes
+for path in X402_PROTECTED_PATHS:
+    network = os.getenv("X402_NETWORK")
+    
+    # Build middleware config - only pass facilitator_config for mainnet (base)
+    middleware_config = {
+        "path": path,
+        "price": os.getenv("X402_PRICE"),
+        "pay_to_address": os.getenv("X402_PAY_TO_ADDRESS"),
+        "network": network,
+    }
+    
+    # Only include facilitator_config for base mainnet
+    if network == "base":
+        middleware_config["facilitator_config"] = facilitator_config
+    
+    app.middleware("http")(require_payment(**middleware_config))
 
 # ============================================================================
 # Request/Response Models

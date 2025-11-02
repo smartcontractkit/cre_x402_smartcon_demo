@@ -24,4 +24,10 @@ production-settings:
     - chain-name: ethereum-testnet-sepolia
       url: https://ethereum-sepolia-rpc.publicnode.com
     - chain-name: ethereum-mainnet
-      url: https://mainnet.infura.io/v3/<YOUR-PROJECT-ID>
+      url: https://ethereum-rpc.publicnode.com
+    - chain-name: ethereum-testnet-sepolia-base-1
+      url: https://base-sepolia-rpc.publicnode.com
+    - chain-name: ethereum-mainnet-base-1
+      url: https://base-rpc.publicnode.com
+
+
