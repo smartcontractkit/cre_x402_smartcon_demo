@@ -1,0 +1,4 @@
+[submodule "cre_workflow/contracts/evm/lib/openzeppelin-contracts"]
+	path = cre_workflow/contracts/evm/lib/openzeppelin-contracts
+	url = https://github.com/OpenZeppelin/openzeppelin-contracts
+

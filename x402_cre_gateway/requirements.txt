@@ -1,0 +1,9 @@
+fastapi==0.120.4
+uvicorn==0.38.0
+requests==2.32.5
+eth-account==0.13.7
+pydantic==2.12.3
+google-cloud-secret-manager==2.23.3
+python-dotenv==1.2.1
+x402==0.2.1
+cdp-sdk==1.33.1
