@@ -1,0 +1,9 @@
+fastapi
+uvicorn
+requests
+eth-account
+pydantic
+google-cloud-secret-manager
+python-dotenv
+x402
+
