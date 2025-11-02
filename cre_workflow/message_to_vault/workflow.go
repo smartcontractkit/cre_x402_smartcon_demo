@@ -7,7 +7,7 @@ import (
 	"strings"
 	"sync"
 
-	messagevault "message_to_vault/contracts/evm/src/generated/message_vault"
+	messagevault "cre_workflow/contracts/evm/src/generated/message_vault"
 
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/common"

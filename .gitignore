@@ -35,3 +35,5 @@ go.work.sum
 **/cache
 **/out
 **/lib
+
+**/binary.wasm.br.b64
