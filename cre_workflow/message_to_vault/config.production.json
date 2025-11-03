@@ -1,13 +1,13 @@
 {
     "evms": [
       {
-        "chainName": "ethereum-testnet-sepolia-base-1",
-        "messageVaultAddress": "0x0437958c152f5c7368b24a2b6b39ea86260f9d7a",
+        "chainName": "ethereum-mainnet-base-1",
+        "messageVaultAddress": "0x0cC38B68c827C387f80F4DBddCc2045B1965803C",
         "gasLimit": 5000000
       },
       {
-        "chainName": "ethereum-testnet-sepolia",
-        "messageVaultAddress": "0xcbfa7fc54d0037ad11d52dd22a8ba8dba833d739",
+        "chainName": "ethereum-mainnet",
+        "messageVaultAddress": "0x0cC38B68c827C387f80F4DBddCc2045B1965803C",
         "gasLimit": 5000000
       }
     ]

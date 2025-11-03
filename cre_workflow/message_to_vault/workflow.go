@@ -65,14 +65,11 @@ type WorkflowResult struct {
 }
 
 func InitWorkflow(config *Config, logger *slog.Logger, secretsProvider cre.SecretsProvider) (cre.Workflow[*Config], error) {
+	// You can set up multiple authorized keys
 	MyAuthorizedKeys := []*http.AuthorizedKey{
 		{
 			Type:      http.KeyType_KEY_TYPE_ECDSA_EVM,
-			PublicKey: "0x1B6709d6c53EB71B9ADF0c66F36bF994ed21DF79",
-		},
-		{
-			Type:      http.KeyType_KEY_TYPE_ECDSA_EVM,
-			PublicKey: "0xeC30166F02Fb4cF65a92F7d5d762beC8e941539e",
+			PublicKey: "0x8a168fc7ac92f1dae111ddc0d21a9989f03d3a04",
 		},
 	}
 	httpTriggerCfg := &http.Config{AuthorizedKeys: MyAuthorizedKeys}

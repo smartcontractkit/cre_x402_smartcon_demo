@@ -37,3 +37,4 @@ go.work.sum
 **/lib
 
 **/binary.wasm.br.b64
+/cre_workflow/contracts/evm/broadcast
