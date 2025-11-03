@@ -19,21 +19,17 @@ import (
 
 // EvmConfig holds the EVM chain and contract configuration
 type EvmConfig struct {
-	ChainName            string `json:"chainName"`
-	MessageVaultAddress  string `json:"messageVaultAddress"`
-	GasLimit             uint64 `json:"gasLimit"`
+	ChainSelector       uint64 `json:"chainSelector"` // CCIP chain selector
+	MessageVaultAddress string `json:"messageVaultAddress"`
+	GasLimit            uint64 `json:"gasLimit"`
 }
 
-func (e *EvmConfig) GetChainSelector() (uint64, error) {
-	return evm.ChainSelectorFromName(e.ChainName)
+func (e *EvmConfig) GetChainSelector() uint64 {
+	return e.ChainSelector
 }
 
-func (e *EvmConfig) NewEVMClient() (*evm.Client, error) {
-	chainSelector, err := e.GetChainSelector()
-	if err != nil {
-		return nil, err
-	}
-	return &evm.Client{ChainSelector: chainSelector}, nil
+func (e *EvmConfig) NewEVMClient() *evm.Client {
+	return &evm.Client{ChainSelector: e.ChainSelector}
 }
 
 // Config is the workflow configuration loaded from config.json
@@ -53,9 +49,9 @@ type MessageVaultRequest struct {
 
 // TxResult holds the result of a single transaction
 type TxResult struct {
-	TxHash    string `json:"txHash"`
-	ChainName string `json:"chainName"`
-	Contract  string `json:"contract"`
+	TxHash        string `json:"txHash"`
+	ChainSelector uint64 `json:"chainSelector"`
+	Contract      string `json:"contract"`
 }
 
 // WorkflowResult holds the result of storing messages
@@ -88,7 +84,7 @@ func onHTTPTrigger(config *Config, runtime cre.Runtime, payload *http.Payload) (
 
 	// Parse the input from payload
 	logger.Info("Raw payload.Input", "bytes", string(payload.Input))
-	
+
 	var vaultRequest MessageVaultRequest
 	if err := json.Unmarshal(payload.Input, &vaultRequest); err != nil {
 		logger.Error("Failed to parse payload", "err", err, "raw", string(payload.Input))
@@ -100,7 +96,7 @@ func onHTTPTrigger(config *Config, runtime cre.Runtime, payload *http.Payload) (
 		logger.Error("Validation failed: at least one message is required")
 		return nil, fmt.Errorf("at least one message is required")
 	}
-	
+
 	logger.Info("Parsed request", "message_count", len(vaultRequest.Messages))
 	logger.Info("Validation passed, proceeding to store messages")
 
@@ -109,7 +105,7 @@ func onHTTPTrigger(config *Config, runtime cre.Runtime, payload *http.Payload) (
 		logger.Error("Failed to store messages", "err", err)
 		return nil, fmt.Errorf("failed to store messages: %w", err)
 	}
-	
+
 	return &WorkflowResult{
 		Transactions: transactions,
 		MessageCount: messageCount,
@@ -120,11 +116,11 @@ func onHTTPTrigger(config *Config, runtime cre.Runtime, payload *http.Payload) (
 // It writes to all configured EVM contracts in parallel
 func storeMessages(config *Config, runtime cre.Runtime, messages []string) ([]TxResult, int, error) {
 	logger := runtime.Logger()
-	
+
 	if len(config.Evms) == 0 {
 		return nil, 0, fmt.Errorf("no EVM configuration found")
 	}
-	
+
 	// Filter out empty messages first
 	var validMessages []string
 	for _, msg := range messages {
@@ -132,57 +128,50 @@ func storeMessages(config *Config, runtime cre.Runtime, messages []string) ([]Tx
 			validMessages = append(validMessages, msg)
 		}
 	}
-	
+
 	if len(validMessages) == 0 {
 		return nil, 0, fmt.Errorf("no valid messages to send")
 	}
-	
+
 	logger.Info("Prepared messages", "count", len(validMessages))
-	
+
 	// Structures for parallel execution
 	type writeResult struct {
 		txResult TxResult
 		err      error
 	}
-	
+
 	var (
 		wg      sync.WaitGroup
 		mu      sync.Mutex
 		results []writeResult
 	)
-	
+
 	// Launch parallel writes to all configured contracts
 	for i, evmConfig := range config.Evms {
 		// Validate vault address is configured
 		if evmConfig.MessageVaultAddress == "" || evmConfig.MessageVaultAddress == "0xYOUR_DEPLOYED_CONTRACT_ADDRESS" {
-			logger.Warn("Skipping EVM config - address not configured", "chain", evmConfig.ChainName)
+			logger.Warn("Skipping EVM config - address not configured", "chainSelector", evmConfig.ChainSelector)
 			continue
 		}
-		
+
 		wg.Add(1)
 		go func(index int, cfg EvmConfig) {
 			defer wg.Done()
-			
-			logger.Info("Processing EVM config in parallel", "index", index, "chain", cfg.ChainName)
-			logger.Info("Storing messages", "contractAddress", cfg.MessageVaultAddress, "chain", cfg.ChainName)
+
+			logger.Info("Processing EVM config in parallel", "index", index, "chainSelector", cfg.ChainSelector)
+			logger.Info("Storing messages", "contractAddress", cfg.MessageVaultAddress, "chainSelector", cfg.ChainSelector)
 
 			// Create EVM client
-			evmClient, err := cfg.NewEVMClient()
-			if err != nil {
-				logger.Error("Failed to create EVM client", "chain", cfg.ChainName, "err", err)
-				mu.Lock()
-				results = append(results, writeResult{err: fmt.Errorf("failed to create EVM client for %s: %w", cfg.ChainName, err)})
-				mu.Unlock()
-				return
-			}
+			evmClient := cfg.NewEVMClient()
 
 			// Create contract instance
 			contractAddress := common.HexToAddress(cfg.MessageVaultAddress)
 			contract, err := messagevault.NewMessageVault(evmClient, contractAddress, nil)
 			if err != nil {
-				logger.Error("Failed to create contract instance", "chain", cfg.ChainName, "err", err)
+				logger.Error("Failed to create contract instance", "chainSelector", cfg.ChainSelector, "err", err)
 				mu.Lock()
-				results = append(results, writeResult{err: fmt.Errorf("failed to create contract instance for %s: %w", cfg.ChainName, err)})
+				results = append(results, writeResult{err: fmt.Errorf("failed to create contract instance for chain %d: %w", cfg.ChainSelector, err)})
 				mu.Unlock()
 				return
 			}
@@ -190,32 +179,32 @@ func storeMessages(config *Config, runtime cre.Runtime, messages []string) ([]Tx
 			// Prepare gas configuration
 			gasConfig := &evm.GasConfig{GasLimit: cfg.GasLimit}
 
-			logger.Info("Sending report to contract via onReport()", "chain", cfg.ChainName)
-			
+			logger.Info("Sending report to contract via onReport()", "chainSelector", cfg.ChainSelector)
+
 			// ABI-encode the data: (string[])
 			stringArrayType, err := abi.NewType("string[]", "", nil)
 			if err != nil {
-				logger.Error("Failed to create string array ABI type", "chain", cfg.ChainName, "err", err)
+				logger.Error("Failed to create string array ABI type", "chainSelector", cfg.ChainSelector, "err", err)
 				mu.Lock()
-				results = append(results, writeResult{err: fmt.Errorf("failed to create string array ABI type for %s: %w", cfg.ChainName, err)})
-				mu.Unlock()
-				return
-			}
-			
-			arguments := abi.Arguments{
-				{Type: stringArrayType},
-			}
-			
-			encoded, err := arguments.Pack(validMessages)
-			if err != nil {
-				logger.Error("Failed to ABI-encode data", "chain", cfg.ChainName, "err", err)
-				mu.Lock()
-				results = append(results, writeResult{err: fmt.Errorf("failed to ABI-encode data for %s: %w", cfg.ChainName, err)})
+				results = append(results, writeResult{err: fmt.Errorf("failed to create string array ABI type for chain %d: %w", cfg.ChainSelector, err)})
 				mu.Unlock()
 				return
 			}
 
-			logger.Info("ABI-encoded payload", "chain", cfg.ChainName, "size", len(encoded), "message_count", len(validMessages))
+			arguments := abi.Arguments{
+				{Type: stringArrayType},
+			}
+
+			encoded, err := arguments.Pack(validMessages)
+			if err != nil {
+				logger.Error("Failed to ABI-encode data", "chainSelector", cfg.ChainSelector, "err", err)
+				mu.Lock()
+				results = append(results, writeResult{err: fmt.Errorf("failed to ABI-encode data for chain %d: %w", cfg.ChainSelector, err)})
+				mu.Unlock()
+				return
+			}
+
+			logger.Info("ABI-encoded payload", "chainSelector", cfg.ChainSelector, "size", len(encoded), "message_count", len(validMessages))
 
 			// Generate a signed report with the encoded data
 			report, err := runtime.GenerateReport(&pb.ReportRequest{
@@ -225,9 +214,9 @@ func storeMessages(config *Config, runtime cre.Runtime, messages []string) ([]Tx
 				HashingAlgo:    "keccak256",
 			}).Await()
 			if err != nil {
-				logger.Error("Failed to generate report", "chain", cfg.ChainName, "err", err)
+				logger.Error("Failed to generate report", "chainSelector", cfg.ChainSelector, "err", err)
 				mu.Lock()
-				results = append(results, writeResult{err: fmt.Errorf("failed to generate report for %s: %w", cfg.ChainName, err)})
+				results = append(results, writeResult{err: fmt.Errorf("failed to generate report for chain %d: %w", cfg.ChainSelector, err)})
 				mu.Unlock()
 				return
 			}
@@ -235,37 +224,37 @@ func storeMessages(config *Config, runtime cre.Runtime, messages []string) ([]Tx
 			// Write the report to the contract (calls onReport and stores messages)
 			resp, err := contract.WriteReport(runtime, report, gasConfig).Await()
 			if err != nil {
-				logger.Error("Failed to write report to contract", "chain", cfg.ChainName, "err", err)
+				logger.Error("Failed to write report to contract", "chainSelector", cfg.ChainSelector, "err", err)
 				mu.Lock()
-				results = append(results, writeResult{err: fmt.Errorf("failed to write report to contract for %s: %w", cfg.ChainName, err)})
+				results = append(results, writeResult{err: fmt.Errorf("failed to write report to contract for chain %d: %w", cfg.ChainSelector, err)})
 				mu.Unlock()
 				return
 			}
 
 			txHash := fmt.Sprintf("0x%x", resp.TxHash)
-			
-			logger.Info("Successfully stored messages via onReport", "chain", cfg.ChainName, "txHash", txHash, "message_count", len(validMessages))
-			
+
+			logger.Info("Successfully stored messages via onReport", "chainSelector", cfg.ChainSelector, "txHash", txHash, "message_count", len(validMessages))
+
 			// Add successful transaction result
 			mu.Lock()
 			results = append(results, writeResult{
 				txResult: TxResult{
-					TxHash:    txHash,
-					ChainName: cfg.ChainName,
-					Contract:  cfg.MessageVaultAddress,
+					TxHash:        txHash,
+					ChainSelector: cfg.ChainSelector,
+					Contract:      cfg.MessageVaultAddress,
 				},
 			})
 			mu.Unlock()
 		}(i, evmConfig)
 	}
-	
+
 	// Wait for all parallel operations to complete
 	wg.Wait()
-	
+
 	// Collect successful transactions and errors
 	var txResults []TxResult
 	var errors []error
-	
+
 	for _, result := range results {
 		if result.err != nil {
 			errors = append(errors, result.err)
@@ -273,10 +262,10 @@ func storeMessages(config *Config, runtime cre.Runtime, messages []string) ([]Tx
 			txResults = append(txResults, result.txResult)
 		}
 	}
-	
+
 	// Log summary
 	logger.Info("Parallel execution completed", "successful", len(txResults), "failed", len(errors))
-	
+
 	// Check if we successfully wrote to at least one contract
 	if len(txResults) == 0 {
 		// All failed - return combined error
@@ -285,13 +274,12 @@ func storeMessages(config *Config, runtime cre.Runtime, messages []string) ([]Tx
 		}
 		return nil, 0, fmt.Errorf("no contracts were processed")
 	}
-	
+
 	// Log any errors but still return success if at least one succeeded
 	for _, err := range errors {
 		logger.Warn("Some transactions failed", "error", err)
 	}
-	
+
 	logger.Info("Successfully completed transactions", "count", len(txResults))
 	return txResults, len(validMessages), nil
 }
-
