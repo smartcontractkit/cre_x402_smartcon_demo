@@ -69,7 +69,7 @@ func InitWorkflow(config *Config, logger *slog.Logger, secretsProvider cre.Secre
 	MyAuthorizedKeys := []*http.AuthorizedKey{
 		{
 			Type:      http.KeyType_KEY_TYPE_ECDSA_EVM,
-			PublicKey: "0x8a168fc7ac92f1dae111ddc0d21a9989f03d3a04",
+			PublicKey: "your_http_trigger_private_key",
 		},
 	}
 	httpTriggerCfg := &http.Config{AuthorizedKeys: MyAuthorizedKeys}
