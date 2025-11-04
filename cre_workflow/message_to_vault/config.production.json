@@ -2,12 +2,12 @@
   "evms": [
     {
       "chainSelector": 15971525489660198786,
-      "messageVaultAddress": "0x0cC38B68c827C387f80F4DBddCc2045B1965803C",
+      "messageVaultAddress": "your_base_message_vault_address_here",
       "gasLimit": 5000000
     },
     {
       "chainSelector": 5009297550715157269,
-      "messageVaultAddress": "0x0cC38B68c827C387f80F4DBddCc2045B1965803C",
+      "messageVaultAddress": "your_ethereum_message_vault_address_here",
       "gasLimit": 5000000
     }
   ]
