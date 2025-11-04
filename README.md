@@ -108,8 +108,8 @@ gcloud run deploy cre-demo-x402-gateway --image gcr.io/$PROJECT_ID/cre-demo-x402
 
 Required:
 - `WORKFLOW_ID` - Your CRE workflow ID
-- `GATEWAY_URL` - CRE gateway URL (default: https://01.gateway.zone-a.cre.chain.link)
-- `HTTP_TRIGGER_PRIVATE_KEY` - Ethereum private key for signing
+- `GATEWAY_URL` - CRE HTTP gateway URL 
+- `HTTP_TRIGGER_PRIVATE_KEY` - Private key for signing
 
 For X402 payments:
 - `X402_PRICE` - Payment amount (e.g., "0.01")
@@ -117,7 +117,7 @@ For X402 payments:
 - `X402_NETWORK` - Network ("base" or "base-sepolia")
 - `CDP_API_KEY_ID` - Coinbase Developer Platform API key ID [To use CDP Facilitator]
 - `CDP_API_KEY_SECRET` - CDP API key secret [To use CDP Facilitator]
-- `F` - CDP API key secret
+- `FACILITATOR_URL` - Set up a x402 facilitator URL to use as an alternative to CDP.
 
 
 ### Contract Configuration
